@@ -1,0 +1,63 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: financial-monitor-backend
+  labels:
+    app: financial-monitor
+
+spec:
+  replicas: 5
+
+  selector:
+    matchLabels:
+      app: financial-monitor
+
+  template:
+    metadata:
+      labels:
+        app: financial-monitor
+
+    spec:
+      containers:
+        - name: backend
+          image: financial-monitor-backend:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+
+            - name: ConnectionStrings__Redis
+              value: "redis-master.default.svc.cluster.local:6379"
+
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: financial-monitor-secrets
+                  key: postgres-connection-string
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
